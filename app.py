@@ -1,112 +1,169 @@
+# app.py
+
 import streamlit as st
-import requests
 import pandas as pd
+import sqlite3
+import logging
+from datetime import datetime, timedelta
+import requests
 
-# Streamlit app layout
-st.title("Emotion Detection App")
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Define the FastAPI backend URL
-# Update this URL to match the FastAPI container name
-fastapi_url = "http://localhost:8000"# fastapi_url = "http://fastapi:8000"  # Update with your FastAPI server URL if different
+# Define the backend API URL
+BACKEND_URL = "http://backend:8000"  # Use "http://localhost:8000" if running locally without Docker
 
-# Sidebar options for different functionalities
-option = st.sidebar.selectbox("Choose an option", ["Single Text Prediction", "Multiple Texts Prediction", "Predict from CSV"])
+# Database connection
+conn = sqlite3.connect('journal_entries.db', check_same_thread=False)
+c = conn.cursor()
 
-# Function to get access token
-def get_access_token(username, password):
-    response = requests.post(f"{fastapi_url}/token", data={"username": username, "password": password})
-    if response.status_code == 200:
-        return response.json().get("access_token")
-    else:
-        st.error("Authentication failed. Please check your credentials.")
-        return None
+# Create table to store student entries
+c.execute('''CREATE TABLE IF NOT EXISTS entries (
+    user TEXT, 
+    role TEXT, 
+    entry TEXT, 
+    emotion TEXT, 
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)''')
+conn.commit()
 
-# Authenticate user
-st.sidebar.header("Authentication")
-username = st.sidebar.text_input("Username")
-password = st.sidebar.text_input("Password", type="password")
+# Emotions that define a "feeling low" state
+low_emotions = {"sadness", "grief", "fear", "anger", "nervousness"}
 
-if st.sidebar.button("Login"):
-    token = get_access_token(username, password)
-    if token:
-        st.session_state.token = token  # Store token in session state
-        st.sidebar.success("Login successful. Please authorize to use the model.")
+# Dummy user database with roles
+users_db = {
+    "Najlaa": {"password": "password1", "role": "student"},
+    "Mohamed": {"password": "password1", "role": "student"},
+    "Pedro": {"password": "password2", "role": "doctor"},
+    "kilian": {"password": "password2", "role": "doctor"},
+}
 
-# Authorize user to use the model
-if "token" in st.session_state:
-    st.sidebar.header("Authorization")
-    st.sidebar.text_area("Access Token", st.session_state.token, height=100)
-    authorized = st.sidebar.checkbox("Authorize", value=True)
+# Authentication function
+def authenticate(username, password):
+    user = users_db.get(username)
+    if user and user['password'] == password:
+        return user['role']
+    return None
 
-    if authorized:
-        headers = {"Authorization": f"Bearer {st.session_state.token}"}
+# Initialize session state
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'role' not in st.session_state:
+    st.session_state.role = None
+if 'username' not in st.session_state:
+    st.session_state.username = None
 
-        if option == "Single Text Prediction":
-            st.header("Single Text Emotion Prediction")
+# Function to check if a student is feeling low
+def check_student_alerts():
+    one_week_ago = datetime.now() - timedelta(days=7)
+    students = pd.read_sql_query(
+        "SELECT DISTINCT user FROM entries WHERE role = 'student'", conn
+    )['user'].tolist()
+    alerts = []
 
-            # Input text
-            input_text = st.text_area("Enter text:", "")
+    for student in students:
+        # Query entries for the student from the past week
+        query = "SELECT emotion FROM entries WHERE user = ? AND timestamp >= ?"
+        student_entries = pd.read_sql_query(query, conn, params=(student, one_week_ago))
+        
+        # Count "feeling low" emotions
+        low_emotion_count = student_entries['emotion'].apply(lambda x: x in low_emotions).sum()
+        
+        # If the count exceeds the threshold, generate an alert
+        if low_emotion_count >= 3:  # Threshold can be adjusted as needed
+            alerts.append(f"Student {student} is showing signs of distress ({low_emotion_count} low emotions in the past week).")
 
-            # Predict emotion
-            if st.button("Predict"):
-                if input_text.strip():
-                    response = requests.post(f"{fastapi_url}/predict/", json={"text": input_text}, headers=headers)
-                    if response.status_code == 200:
-                        result = response.json()
-                        st.write(f"Emotion: {result['emotion']}")
-                        st.write(f"Score: {result['score']}")
-                    else:
-                        st.error(f"Error: {response.json()['detail']}")
-                else:
-                    st.error("Text must not be empty.")
+    return alerts
 
-        elif option == "Multiple Texts Prediction":
-            st.header("Multiple Texts Emotion Prediction")
+# Function to classify text by calling the backend API
+def classify_text_api(text):
+    try:
+        response = requests.post(f"{BACKEND_URL}/classify", json={"text": text})
+        if response.status_code == 200:
+            data = response.json()
+            return data['label'], data['score']
+        else:
+            logging.error(f"Error in classify_text_api: {response.status_code} - {response.text}")
+            return "Error", 0
+    except Exception as e:
+        logging.error(f"Exception in classify_text_api: {e}")
+        return "Error", 0
 
-            # Input multiple texts
-            input_texts = st.text_area("Enter multiple texts (one per line):", "")
+# Login form
+if not st.session_state.authenticated:
+    st.sidebar.subheader("Login")
+    username_input = st.sidebar.text_input("Username")
+    password_input = st.sidebar.text_input("Password", type="password")
+    login_button = st.sidebar.button("Login")
+    
+    if login_button:
+        role = authenticate(username_input, password_input)
+        if role:
+            st.session_state.authenticated = True
+            st.session_state.role = role
+            st.session_state.username = username_input
+            st.success(f"Welcome, {username_input}!")
+        else:
+            st.error("Invalid username or password")
 
-            # Predict emotions for multiple texts
-            if st.button("Predict"):
-                texts = [text.strip() for text in input_texts.split("\n") if text.strip()]
-                if texts:
-                    response = requests.post(f"{fastapi_url}/predict-multiple/", json={"texts": texts}, headers=headers)
-                    if response.status_code == 200:
-                        results = response.json()
-                        results_df = pd.DataFrame(results)
-                        st.write(results_df)
-                    else:
-                        st.error(f"Error: {response.json()['detail']}")
-                else:
-                    st.error("Please enter at least one text.")
+# If authenticated, render the appropriate interface
+if st.session_state.authenticated:
+    # Student Interface
+    if st.session_state.role == 'student':
+        st.title(f"Hello, {st.session_state.username}! How are you feeling today?")
+        input_text = st.text_area("Enter your thoughts here:")
+        
+        if st.button("Submit"):
+            if input_text.strip() == "":
+                st.error("Text must not be empty!")
+            else:
+                # Classify emotion by calling the backend API
+                emotion, score = classify_text_api(input_text)
+                # Store the entry in the database
+                c.execute(
+                    "INSERT INTO entries (user, role, entry, emotion) VALUES (?, ?, ?, ?)", 
+                    (st.session_state.username, 'student', input_text, emotion)
+                )
+                conn.commit()
+                
+                # Display soothing message
+                st.write(f"We understand you're feeling {emotion}. Thank you for sharing. Your doctor is here to support you.")
+    
+    # Doctor Interface
+    elif st.session_state.role == 'doctor':
+        st.title("Doctor's Dashboard")
+        
+        # Display alerts
+        st.subheader("Student Alerts")
+        alerts = check_student_alerts()
+        if alerts:
+            for alert in alerts:
+                st.warning(alert)
+        else:
+            st.success("No students are currently showing signs of distress.")
+        
+        # General distribution of emotions
+        st.subheader("Overall Emotion Distribution")
+        df = pd.read_sql_query(
+            "SELECT emotion, COUNT(*) as count FROM entries GROUP BY emotion", conn
+        )
+        st.bar_chart(df.set_index('emotion'))
+        
+        # Specific student inquiry
+        st.subheader("View Student Entries")
+        students = pd.read_sql_query(
+            "SELECT DISTINCT user FROM entries WHERE role = 'student'", conn
+        )['user'].tolist()
+        selected_student = st.selectbox("Select a student to view their entries:", students)
+        
+        if selected_student:
+            query = "SELECT entry, emotion, timestamp FROM entries WHERE user = ?"
+            student_entries = pd.read_sql_query(query, conn, params=(selected_student,))
+            st.write(f"Entries for {selected_student}:")
+            st.table(student_entries)
 
-        elif option == "Predict from CSV":
-            st.header("Predict Emotions from CSV File")
-
-            # File upload
-            uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
-
-            if uploaded_file:
-                try:
-                    # Read the CSV file into a DataFrame
-                    df = pd.read_csv(uploaded_file)
-
-                    if 'text' in df.columns:
-                        csv_data = df.to_csv(index=False)
-                        files = {'file': ('uploaded_file.csv', csv_data)}
-
-                        # Send the file to the FastAPI backend
-                        response = requests.post(f"{fastapi_url}/predict-csv/", files=files, headers=headers)
-                        if response.status_code == 200:
-                            results = response.json()
-                            results_df = pd.DataFrame(results)
-                            st.write(results_df)
-                        else:
-                            st.error(f"Error: {response.json()['detail']}")
-                    else:
-                        st.error("CSV must contain a 'text' column.")
-                except Exception as e:
-                    st.error(f"Internal Server Error: {str(e)}")
-
-else:
-    st.warning("Please log in and authorize to access the prediction functionalities.")
+    # Logout button
+    if st.sidebar.button("Logout"):
+        st.session_state.authenticated = False
+        st.session_state.role = None
+        st.session_state.username = None
