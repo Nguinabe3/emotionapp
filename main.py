@@ -1,5 +1,3 @@
-# main.py
-
 from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import pipeline
@@ -31,6 +29,7 @@ class ClassificationResult(BaseModel):
 def classify_text(request: TextRequest):
     try:
         outputs = classifier(request.text)
+        # Since outputs is a list of dictionaries, pick the highest-scoring emotion
         best_prediction = max(outputs[0], key=lambda x: x['score'])
         return ClassificationResult(label=best_prediction['label'], score=best_prediction['score'])
     except Exception as e:

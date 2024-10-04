@@ -1,5 +1,3 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import sqlite3
@@ -11,7 +9,7 @@ import requests
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Define the backend API URL
-BACKEND_URL = "http://backend:8000"  # Use "http://localhost:8000" if running locally without Docker
+BACKEND_URL = "http://localhost:8000"  # Ensure this matches your actual backend address
 
 # Database connection
 conn = sqlite3.connect('journal_entries.db', check_same_thread=False)
@@ -80,8 +78,8 @@ def classify_text_api(text):
     try:
         response = requests.post(f"{BACKEND_URL}/classify", json={"text": text})
         if response.status_code == 200:
-            data = response.json()
-            return data['label'], data['score']
+            data = response.json()  # Make sure the response is parsed as JSON
+            return data.get('label', 'Error'), data.get('score', 0)  # Return label and score
         else:
             logging.error(f"Error in classify_text_api: {response.status_code} - {response.text}")
             return "Error", 0
