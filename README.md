@@ -32,7 +32,7 @@ A web application that allows students to journal their thoughts and emotions, w
 ## Installation and Setup
 
 ### 1. Clone the Repository
-```bash
+
 git clone https://github.com/Nguinabe3/emotionapp.git
 cd emotionapp
 ### 2. Build and Run the Docker Container
@@ -87,7 +87,7 @@ az webapp create --resource-group emotion-journal-rg --plan emotion-journal-plan
 ### 2. Push Docker Image to ACR
 Build and push the Docker image to your Azure Container Registry.
 
-```bash
+
 # Log in to ACR
 az acr login --name emotionjournalacr
 
