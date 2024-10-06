@@ -78,14 +78,20 @@ def classify_text_api(text):
     try:
         response = requests.post(f"{BACKEND_URL}/classify", json={"text": text})
         if response.status_code == 200:
-            data = response.json()  # Make sure the response is parsed as JSON
-            return data.get('label', 'Error'), data.get('score', 0)  # Return label and score
+            data = response.json()  # Ensure the response is parsed as JSON
+            return data.get('label', 'Error'), data.get('score', 0)
+        elif response.status_code == 422:
+            data = response.json()
+            error_messages = data.get('detail', [])
+            # Join multiple error messages into one string
+            error_message = " ".join(error_messages)
+            return "ValidationError", error_message
         else:
             logging.error(f"Error in classify_text_api: {response.status_code} - {response.text}")
-            return "Error", 0
+            return "Error", f"Error {response.status_code}: {response.text}"
     except Exception as e:
         logging.error(f"Exception in classify_text_api: {e}")
-        return "Error", 0
+        return "Error", f"Exception occurred: {e}"
 
 # Login form
 if not st.session_state.authenticated:
@@ -116,16 +122,21 @@ if st.session_state.authenticated:
                 st.error("Text must not be empty!")
             else:
                 # Classify emotion by calling the backend API
-                emotion, score = classify_text_api(input_text)
-                # Store the entry in the database
-                c.execute(
-                    "INSERT INTO entries (user, role, entry, emotion) VALUES (?, ?, ?, ?)", 
-                    (st.session_state.username, 'student', input_text, emotion)
-                )
-                conn.commit()
-                
-                # Display soothing message
-                st.write(f"We understand you're feeling {emotion}. Thank you for sharing. Your doctor is here to support you.")
+                emotion, message = classify_text_api(input_text)
+                if emotion == "ValidationError":
+                    st.error(message)
+                elif emotion == "Error":
+                    st.error(f"An error occurred: {message}")
+                else:
+                    # Store the entry in the database
+                    c.execute(
+                        "INSERT INTO entries (user, role, entry, emotion) VALUES (?, ?, ?, ?)", 
+                        (st.session_state.username, 'student', input_text, emotion)
+                    )
+                    conn.commit()
+                    
+                    # Display soothing message
+                    st.write(f"We understand you're feeling {emotion}. Thank you for sharing, We're here to support you through it all!")
     
     # Doctor Interface
     elif st.session_state.role == 'doctor':
