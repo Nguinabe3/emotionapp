@@ -87,7 +87,7 @@ az webapp create --resource-group emotion-journal-rg --plan emotion-journal-plan
 ```
 ### 2. Push Docker Image to ACR
 Build and push the Docker image to your Azure Container Registry.
-
+```bash
 
 # Log in to ACR
 az acr login --name emotionjournalacr
@@ -95,7 +95,7 @@ az acr login --name emotionjournalacr
 # Tag and push the image
 docker tag emotion-journal-app emotionjournalacr.azurecr.io/emotion-journal-app:latest
 docker push emotionjournalacr.azurecr.io/emotion-journal-app:latest
-
+```
 ### 3. Configure Azure Web App
 - Set up the web app to pull images from ACR.
 - Assign the `AcrPull` role to the web app's managed identity.
