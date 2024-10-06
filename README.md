@@ -101,6 +101,7 @@ docker push emotionjournalacr.azurecr.io/emotion-journal-app:latest
 
 ## Project Structure
 
+```bash
 emotion-journal-app/
 ├── app.py                # Streamlit frontend
 ├── main.py               # FastAPI backend
@@ -108,5 +109,6 @@ emotion-journal-app/
 ├── Dockerfile            # Docker configuration
 ├── docker-compose.yml    # Docker Compose configuration
 └── README.md             # Project documentation
+
 ## License
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more details.
