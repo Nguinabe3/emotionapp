@@ -79,11 +79,12 @@ The project uses GitHub Actions for automated building and deployment to Azure.
 ## Deployment Steps
 
 ### 1. Create Azure Resources
-
+```bash
 az group create --name emotion-journal-rg --location eastus
 az acr create --resource-group emotion-journal-rg --name emotionjournalacr --sku Basic
 az appservice plan create --name emotion-journal-plan --resource-group emotion-journal-rg --is-linux --sku B1
 az webapp create --resource-group emotion-journal-rg --plan emotion-journal-plan --name emotion-journal-app --multicontainer-config-type compose --multicontainer-config-file docker-compose.yml
+```
 ### 2. Push Docker Image to ACR
 Build and push the Docker image to your Azure Container Registry.
 
