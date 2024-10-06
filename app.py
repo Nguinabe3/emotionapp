@@ -136,8 +136,19 @@ if st.session_state.authenticated:
                     conn.commit()
                     
                     # Display soothing message
-                    st.write(f"We understand you're feeling {emotion}. Thank you for sharing, We're here to support you through it all!")
-    
+                    st.write(f"We understand you're feeling {emotion}. Thank you for sharing, we're here to support you through it all!")
+        
+        # **New Feature: Display Student's Emotion History**
+        st.subheader("Your Emotion History")
+        # Fetch the student's entries
+        query = "SELECT entry, emotion, timestamp FROM entries WHERE user = ? ORDER BY timestamp DESC"
+        student_entries = pd.read_sql_query(query, conn, params=(st.session_state.username,))
+        if not student_entries.empty:
+            # Display entries in a table
+            st.table(student_entries)
+        else:
+            st.info("You have no previous entries.")
+
     # Doctor Interface
     elif st.session_state.role == 'doctor':
         st.title("Doctor's Dashboard")
