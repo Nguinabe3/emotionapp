@@ -45,15 +45,19 @@ The application uses a Dockerfile that sets up both the FastAPI backend and Stre
 - Starts Streamlit and then FastAPI within the same container.
 
 ### 3. Build and Run
+```bash
 docker build -t emotion-journal-app .
 docker run -p 8000:8000 -p 8501:8501 emotion-journal-app
+```
 - Access the frontend at [http://localhost:8501](http://localhost:8501)
 - Access the backend API at [http://localhost:8000](http://localhost:8000)
 
 ## Usage
 
 ### Access the Application
-Open your web browser and navigate to [http://localhost:8501](http://localhost:8501).
+Open your web browser and navigate to [https://myemmotionapp-bkg0gyhydrgxa4h6.canadacentral-01.azurewebsites.net
+](https://myemmotionapp-bkg0gyhydrgxa4h6.canadacentral-01.azurewebsites.net
+).
 
 ### Default Users
 
@@ -103,14 +107,16 @@ docker push emotionjournalacr.azurecr.io/emotion-journal-app:latest
 ## Project Structure
 
 ```bash
-emotion-journal-app/
-├── app.py                # Streamlit frontend
-├── main.py               # FastAPI backend
-├── requirements.txt      # Python dependencies
-├── Dockerfile            # Docker configuration
-├── docker-compose.yml    # Docker Compose configuration
-└── README.md             # Project documentation
-
+emotionapp/
+├── app.py                     # Streamlit frontend
+├── main.py                    # FastAPI backend
+├── requirements.txt           # Python dependencies
+├── Dockerfile                 # Docker configuration
+├── docker-compose.yml         # Docker Compose configuration
+├── README.md                  # Project documentation
+└── .github/
+    └── workflows/
+        └── smain_myemotionapp.yml   # GitHub Actions workflow configuration
 
 ```
 ## License
