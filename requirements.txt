@@ -13,4 +13,4 @@ streamlit
 pyjwt
 pytest==7.4.0
 httpx==0.24.1
-
+transformers==4.30.2 
