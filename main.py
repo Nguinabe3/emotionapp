@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field, validator
 from transformers import pipeline
 import logging
 from fastapi.exceptions import RequestValidationError  # Import RequestValidationError
-import json
-import os
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -23,7 +21,7 @@ except Exception as e:
 
 # Define request and response models
 class TextRequest(BaseModel):
-    text: str = Field(..., min_length=5, max_length=500)
+    text: str = Field(..., min_length=20, max_length=500)
 
     @validator('text')
     def text_must_not_be_whitespace(cls, v):
@@ -35,19 +33,6 @@ class ClassificationResult(BaseModel):
     label: str
     score: float
 
-# Data saving and loading functions
-def save_data_to_file(data, filename):
-    with open(filename, 'w') as f:
-        json.dump(data, f)
-
-def load_data_from_file(filename):
-    with open(filename, 'r') as f:
-        return json.load(f)
-
-# Text transformation function
-def transform_text(text):
-    return text.lower().strip()
-
 # Define the classify endpoint
 @app.post("/classify", response_model=ClassificationResult)
 def classify_text(request: TextRequest):
@@ -55,12 +40,13 @@ def classify_text(request: TextRequest):
         logging.error("Classifier model not loaded.")
         raise HTTPException(status_code=500, detail="Classifier model not loaded.")
     try:
-        transformed_text = transform_text(request.text)
-        outputs = classifier(transformed_text)
+        outputs = classifier(request.text)
+        # Since outputs is a list of dictionaries, pick the highest-scoring emotion
         best_prediction = max(outputs[0], key=lambda x: x['score'])
         return ClassificationResult(label=best_prediction['label'], score=best_prediction['score'])
     except Exception as e:
         logging.error(f"Error in classify_text: {e}")
+        # It's better to raise an HTTPException here
         raise HTTPException(status_code=500, detail="An error occurred during classification.")
 
 # Custom exception handler for request validation errors
@@ -68,8 +54,10 @@ def classify_text(request: TextRequest):
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     logging.error(f"Validation error: {exc}")
     errors = exc.errors()
+    # Construct custom error messages
     error_messages = []
     for error in errors:
+        # Log the error details
         logging.error(f"Validation error detail: {error}")
         error_type = error['type']
         msg = error['msg']
@@ -78,6 +66,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
         elif error_type == 'value_error.any_str.max_length':
             error_messages.append("Please limit your journal entry to 500 characters.")
         elif error_type == 'value_error':
+            # This captures custom validator errors like 'Text must not be empty or whitespace only.'
             error_messages.append(msg)
         else:
             error_messages.append(msg)
