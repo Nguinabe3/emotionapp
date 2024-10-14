@@ -16,3 +16,4 @@ pytest
 pytest-cov
 httpx  # For testing FastAPI apps
 pandas==1.5.2
+tokenizers==0.13.2 
