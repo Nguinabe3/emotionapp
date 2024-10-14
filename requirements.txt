@@ -11,6 +11,7 @@ PyJWT>=2.0.0
 python-multipart
 streamlit
 pyjwt
-pytest==7.4.0
-httpx==0.24.1
 transformers==4.30.2 
+pytest
+pytest-cov
+httpx  # For testing FastAPI apps
