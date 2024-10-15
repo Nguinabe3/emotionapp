@@ -112,7 +112,6 @@ emotionapp/
 ├── main.py                    # FastAPI backend
 ├── requirements.txt           # Python dependencies
 ├── Dockerfile                 # Docker configuration
-├── docker-compose.yml         # Docker Compose configuration
 ├── README.md                  # Project documentation
 └── .github/
     └── workflows/
